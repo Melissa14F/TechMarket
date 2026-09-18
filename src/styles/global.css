@@ -1,0 +1,50 @@
+/* ==========================================================================
+   global.css — design tokens, fonts, and base resets shared by every
+   component. Imported once, at the app root (src/App.jsx). Each component
+   owns its own stylesheet in this folder (Header.css, Hero.css, etc.) and
+   imports it directly.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap');
+@import 'tailwindcss';
+@import './icons.css';
+
+:root {
+  --brand: #5B2A86;
+  --brand-hover: #7C3AED;
+  --brand-dark: #3D1A5C;
+  --blue: #2563EB;
+  --blue-hover: #1D4ED8;
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --text: #111827;
+  --text-muted: #64748B;
+  --border: #E2E8F0;
+  --success: #16A34A;
+  --danger: #EF4444;
+  --star: #F59E0B;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }

@@ -1,10 +1,12 @@
+import '../styles/ProductCard.css';
+
 const BADGE_CLASS = {
   'Nuevo': 'pc-badge--nuevo',
   'Gaming': 'pc-badge--gaming',
   'Oferta': 'pc-badge--oferta',
 };
 
-export default function ProductCard({ product, onAddToCart, onView }) {
+export default function ProductCard({ product, onView, isFavorite, onToggleFavorite }) {
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : 0;
 
   return (
@@ -22,11 +24,6 @@ export default function ProductCard({ product, onAddToCart, onView }) {
             -{discount}%
           </span>
         )}
-        {product.stock === 'low' && !product.badge && (
-          <span className="pc-low-stock-badge">
-            Últimas unidades
-          </span>
-        )}
         {product.stock === 'out' && (
           <div className="pc-out-overlay">
             <span className="pc-out-label">Sin stock</span>
@@ -36,7 +33,20 @@ export default function ProductCard({ product, onAddToCart, onView }) {
 
       {/* Body */}
       <div className="pc-body">
-        <div className="pc-brand">{product.brand}</div>
+        <div className="pc-brand-row">
+          <div className="pc-brand">{product.brand}</div>
+          {onToggleFavorite && (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleFavorite(product); }}
+              title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              className="pc-favorite-btn"
+            >
+              <svg className={`icon icon-15 icon-sw-2_5 ${isFavorite ? 'pc-favorite-icon--active' : ''}`} viewBox="0 0 24 24">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="pc-name">{product.name}</div>
 
         <Stars rating={product.rating} reviews={product.reviews} />
@@ -54,22 +64,6 @@ export default function ProductCard({ product, onAddToCart, onView }) {
             </span>
           )}
         </div>
-
-        <button
-          onClick={e => { e.stopPropagation(); onAddToCart(product); }}
-          disabled={product.stock === 'out'}
-          className={`pc-add-btn ${product.stock === 'out' ? 'pc-add-btn--disabled' : ''}`}
-        >
-          {product.stock === 'out' ? 'Sin stock' : (
-            <>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-              </svg>
-              Agregar al carrito
-            </>
-          )}
-        </button>
       </div>
     </div>
   );
@@ -80,7 +74,7 @@ function Stars({ rating, reviews }) {
     <div className="pc-stars-row">
       <div className="pc-stars-icons">
         {[1,2,3,4,5].map(i => (
-          <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={i <= Math.round(rating) ? '#F59E0B' : '#E2E8F0'} stroke="none">
+          <svg key={i} className={`icon-fill icon-12 ${i <= Math.round(rating) ? 'icon-star-filled' : 'icon-star-empty'}`} viewBox="0 0 24 24">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
         ))}

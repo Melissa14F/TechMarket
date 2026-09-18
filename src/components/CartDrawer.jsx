@@ -1,5 +1,24 @@
-export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty }) {
+import { useState } from 'react';
+import '../styles/CartDrawer.css';
+
+export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty, onCheckout }) {
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+
+  // onCheckout itself redirects to login when nobody's signed in — this
+  // only needs to worry about the real-checkout error/loading states.
+  const handleCheckoutClick = async () => {
+    setCheckingOut(true);
+    setCheckoutError('');
+    try {
+      await onCheckout();
+    } catch (err) {
+      setCheckoutError(err.message);
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   return (
     <>
@@ -18,7 +37,7 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
           {items.length === 0 ? (
             <div className="cd-empty">
               <div className="cd-empty-icon-box">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="icon icon-32 icon-sw-1_5 icon-stroke-border" viewBox="0 0 24 24">
                   <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                 </svg>
               </div>
@@ -55,9 +74,10 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
               <span className="cd-total-label">Total</span>
               <span className="cd-total-value">${total.toLocaleString()}</span>
             </div>
-            <button className="cd-checkout-btn">
-              Finalizar compra →
+            <button onClick={handleCheckoutClick} disabled={checkingOut} className="cd-checkout-btn">
+              {checkingOut ? 'Procesando…' : 'Finalizar compra →'}
             </button>
+            {checkoutError && <span className="cd-checkout-error">{checkoutError}</span>}
           </div>
         )}
       </div>

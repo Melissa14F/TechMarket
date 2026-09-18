@@ -1,0 +1,273 @@
+/* ---- ProductDetail (pd-) ---- */
+.pd-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+@media (max-width: 767px) {
+  .pd-container {
+    padding: 20px 16px 48px;
+  }
+}
+
+.pd-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.pd-back-btn:hover {
+  color: var(--brand);
+}
+
+.pd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+}
+
+@media (max-width: 767px) {
+  .pd-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.pd-image-wrap {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+}
+
+.pd-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pd-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 6px;
+  letter-spacing: 0.2px;
+}
+
+.pd-badge--nuevo, .pd-badge--default { background: var(--brand); }
+.pd-badge--gaming { background: #7C3AED; }
+.pd-badge--oferta { background: var(--danger); }
+
+.pd-discount-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.pd-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-brand {
+  font-size: 12px;
+  color: var(--brand);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.pd-name {
+  font-weight: 800;
+  font-size: 26px;
+  color: var(--text);
+  margin: 8px 0 4px;
+  line-height: 1.25;
+}
+
+.pd-category {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+.pd-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pd-price {
+  font-weight: 800;
+  font-size: 32px;
+  color: var(--brand);
+  letter-spacing: -0.6px;
+}
+
+.pd-price-original {
+  font-size: 16px;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.pd-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+
+.pd-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.pd-qty-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pd-qty-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 14px;
+}
+
+.pd-qty-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  width: 20px;
+}
+
+.pd-qty-value {
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+.pd-favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  width: fit-content;
+  margin-bottom: 22px;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.pd-favorite-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* .icon.pd-favorite-icon--active, not just the bare class — see the note
+   on .icon.pc-favorite-icon--active in ProductCard.css. */
+.icon.pd-favorite-icon--active {
+  fill: var(--danger);
+  stroke: var(--danger);
+}
+
+.pd-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+}
+
+@media (max-width: 480px) {
+  .pd-actions {
+    flex-direction: column;
+  }
+}
+
+.pd-add-btn, .pd-buy-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14.5px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pd-add-btn {
+  background: var(--surface);
+  color: var(--brand);
+  border: 1.5px solid var(--brand);
+}
+
+.pd-add-btn:not(.pd-add-btn--disabled):hover {
+  background: var(--bg);
+}
+
+.pd-add-btn--disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.pd-buy-btn {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+}
+
+.pd-buy-btn:not(.pd-buy-btn--disabled):hover {
+  background: var(--brand-hover);
+}
+
+.pd-buy-btn--disabled {
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.pd-buy-error {
+  display: block;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--danger);
+}

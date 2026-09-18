@@ -1,30 +1,149 @@
-const MOCK_ORDERS = [
-  {
-    id: '#ORD-1085', date: '10 Sep 2026', status: 'entregado', total: 1499,
-    items: [{ name: 'MacBook Air M3 15"', brand: 'Apple', qty: 1, price: 1499, image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=120&h=90&fit=crop' }],
-    tracking: 'TM-8823-AR', address: 'Av. Corrientes 1234, CABA', payment: 'Visa ···4521',
-  },
-  {
-    id: '#ORD-1071', date: '28 Ago 2026', status: 'entregado', total: 798,
-    items: [
-      { name: 'Sony WH-1000XM5', brand: 'Sony', qty: 1, price: 349, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=120&h=90&fit=crop' },
-      { name: 'Logitech MX Master 3S', brand: 'Logitech', qty: 1, price: 99, image: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=120&h=90&fit=crop' },
-      { name: 'Razer BlackWidow V4', brand: 'Razer', qty: 1, price: 139, image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=120&h=90&fit=crop' },
-    ],
-    tracking: 'TM-7741-AR', address: 'Av. Corrientes 1234, CABA', payment: 'Mastercard ···9032',
-  },
-  {
-    id: '#ORD-1059', date: '14 Ago 2026', status: 'entregado', total: 1299,
-    items: [{ name: 'iPhone 16 Pro Max', brand: 'Apple', qty: 1, price: 1299, image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=120&h=90&fit=crop' }],
-    tracking: 'TM-6902-AR', address: 'Av. Corrientes 1234, CABA', payment: '12 cuotas de $108',
-  },
-  {
-    id: '#ORD-1044', date: '2 Ago 2026', status: 'cancelado', total: 449,
-    items: [{ name: 'PS5 Slim + Controller', brand: 'Sony', qty: 1, price: 449, image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=120&h=90&fit=crop' }],
-    tracking: '—', address: 'Av. Corrientes 1234, CABA', payment: 'Visa ···4521',
-  },
-];
+import { apiFetch, ApiError } from './api';
 
-export function getOrders() {
-  return MOCK_ORDERS;
+const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS_ES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/**
+ * MockAPI's estado_orden has 10 distinct real values. `order.status`
+ * carries that real value as-is (so any change the admin makes is always
+ * visible to the client, not silently absorbed into a coarser bucket) —
+ * this bucket is only for picking an icon/color grouping in the UI.
+ */
+const STATUS_BUCKET = {
+  'Entregado': 'entregado',
+  'Enviado': 'enviado',
+  'En camino': 'enviado',
+  'Cancelado': 'cancelado',
+  'Devuelto': 'cancelado',
+  'Reembolsado': 'cancelado',
+  'Pendiente': 'procesando',
+  'Confirmado': 'procesando',
+  'En preparación': 'procesando',
+  'En espera de pago': 'procesando',
+};
+
+export function statusBucket(estado) {
+  return STATUS_BUCKET[estado] ?? 'procesando';
+}
+
+/** Tracking only shows once the order has actually shipped, per the
+ * requested rule — even though the current seed data has every order
+ * pre-filled with a numero_seguimiento regardless of status. */
+const SHIPPED_STATUSES = new Set(['Enviado', 'En camino', 'Entregado', 'Devuelto', 'Reembolsado']);
+
+async function fetchClienteOrdenes(clienteName) {
+  try {
+    return await apiFetch('/orden', { params: { cliente: clienteName } });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return [];
+    throw err;
+  }
+}
+
+/**
+ * detalle_orden.orden is NOT orden.id — it's the tracking code
+ * (numero_seguimiento, e.g. "TRK-100001"). That's the real join key.
+ */
+function mapOrder(o, detallesByTracking, productsByName) {
+  const items = (detallesByTracking[o.numero_seguimiento] ?? []).map((d) => {
+    const product = productsByName[d.producto];
+    return {
+      // undefined when the product was renamed/deleted since — "Volver a
+      // comprar" skips items it can't match back to a real product.
+      id: product?.id,
+      name: d.producto,
+      brand: product?.marca ?? '',
+      qty: d.cantidad,
+      price: d.precio_unitario,
+      image: product?.imagen ?? '',
+    };
+  });
+
+  return {
+    id: `#ORD-${o.id}`,
+    rawId: o.id,
+    date: formatDate(o.fecha),
+    status: o.estado_orden,
+    total: o.total,
+    items,
+    tracking: SHIPPED_STATUSES.has(o.estado_orden) ? o.numero_seguimiento : '',
+    address: o.direccion_envio,
+    postalCode: o.codigo_postal,
+    payment: o.metodo_pago,
+  };
+}
+
+export async function cancelOrder(id) {
+  return apiFetch(`/orden/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ estado_orden: 'Cancelado' }),
+  });
+}
+
+/**
+ * `clienteName` must match orden.cliente exactly — MockAPI stores the
+ * client on an order as a plain "Nombre Apellido" string, not an id
+ * reference, so this needs the client's full name (authService.login
+ * returns `${nombre} ${apellido}` for exactly this reason).
+ */
+/**
+ * Creates a real order + its detalle_orden lines. numero_seguimiento
+ * doubles as the join key detalle_orden.orden points to (same convention
+ * as every existing order), so it's generated once and reused for both.
+ */
+export async function createOrder({ clienteName, items, address, postalCode, paymentMethod = 'Tarjeta de crédito', discountAmount = 0 }) {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const total = Math.max(0, Math.round(subtotal - discountAmount));
+  const trackingCode = `TRK-${Date.now()}`;
+
+  await apiFetch('/orden', {
+    method: 'POST',
+    body: JSON.stringify({
+      cliente: clienteName,
+      fecha: new Date().toISOString(),
+      metodo_pago: paymentMethod,
+      total,
+      descuento: discountAmount,
+      direccion_envio: address ?? '',
+      codigo_postal: postalCode ?? '',
+      estado_orden: 'Pendiente',
+      numero_seguimiento: trackingCode,
+    }),
+  });
+
+  await Promise.all(items.map((item) => apiFetch('/detalle_orden', {
+    method: 'POST',
+    body: JSON.stringify({
+      orden: trackingCode,
+      producto: item.name,
+      cantidad: item.qty,
+      precio_unitario: item.price,
+      subtotal: item.price * item.qty,
+    }),
+  })));
+}
+
+export async function getOrders(clienteName) {
+  const [ordenes, detalles, productos] = await Promise.all([
+    fetchClienteOrdenes(clienteName),
+    apiFetch('/detalle_orden'),
+    apiFetch('/producto'),
+  ]);
+
+  const detallesByTracking = {};
+  for (const d of detalles) {
+    (detallesByTracking[d.orden] ??= []).push(d);
+  }
+
+  const productsByName = {};
+  for (const p of productos) productsByName[p.nombre] = p;
+
+  return ordenes
+    .slice()
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .map((o) => mapOrder(o, detallesByTracking, productsByName));
 }

@@ -1,0 +1,195 @@
+/* ---- Footer (ftr-) ---- */
+.ftr-root {
+  background: var(--brand-dark);
+  color: #fff;
+  padding: 56px 24px 32px;
+}
+
+@media (max-width: 767px) {
+  .ftr-root {
+    padding: 40px 20px 28px;
+  }
+}
+
+.ftr-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.ftr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 40px;
+  margin-bottom: 48px;
+}
+
+@media (max-width: 767px) {
+  .ftr-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    margin-bottom: 32px;
+  }
+}
+
+.ftr-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ftr-logo-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.ftr-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+}
+
+.ftr-brand-name {
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.ftr-about-text {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.7;
+  margin: 0 0 20px;
+}
+
+.ftr-social-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ftr-social-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.ftr-social-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.ftr-social-btn--whatsapp {
+  background: rgba(22, 163, 74, 0.2);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.ftr-social-btn--whatsapp:hover {
+  background: rgba(22, 163, 74, 0.35);
+}
+
+.ftr-heading {
+  font-weight: 700;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.ftr-body-text {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.75;
+  margin: 0;
+}
+
+.ftr-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ftr-contact-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ftr-contact-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+  margin-top: 1px;
+}
+
+.ftr-contact-text {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+}
+
+.ftr-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ftr-link {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.ftr-link:hover {
+  color: #93c5fd;
+}
+
+.ftr-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ftr-copyright {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ftr-payment-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ftr-payment-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+

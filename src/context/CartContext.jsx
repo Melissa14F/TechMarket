@@ -6,22 +6,23 @@ export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const addToCart = (p) => {
+  const addToCart = (p, qty = 1) => {
     setCartItems(prev => {
       const existing = prev.find(i => i.id === p.id);
-      if (existing) return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...p, qty: 1 }];
+      if (existing) return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + qty } : i);
+      return [...prev, { ...p, qty }];
     });
     setCartOpen(true);
   };
 
   const removeFromCart = (id) => setCartItems(prev => prev.filter(i => i.id !== id));
   const changeQty = (id, qty) => setCartItems(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
+  const clearCart = () => setCartItems([]);
   const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
 
   return (
     <CartContext.Provider value={{
-      cartItems, cartOpen, cartCount, addToCart, removeFromCart, changeQty,
+      cartItems, cartOpen, cartCount, addToCart, removeFromCart, changeQty, clearCart,
       openCart: () => setCartOpen(true), closeCart: () => setCartOpen(false),
     }}>
       {children}
