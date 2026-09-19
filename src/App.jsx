@@ -13,10 +13,10 @@ import CartDrawer from './components/CartDrawer';
 import AuthView from './components/AuthView';
 import AdminView from './components/AdminView';
 import ClientAccount from './components/ClientAccount';
-import { getFeaturedProducts, getBestSellers, getRecommendedProducts, incrementarVisita, decrementStock } from './services/productsService';
+import { getFeaturedProducts, getBestSellers, getRecommendedProducts, incrementarVisita, decrementStock, getProductById } from './services/productsService';
 import { getPageInfo } from './services/pageInfoService';
 import { createOrder } from './services/ordersService';
-import { getById as getClienteById } from './services/clienteService';
+import { incrementUsage as incrementDiscountUsage } from './services/discountsService';
 import './styles/global.css';
 import './styles/App.css';
 
@@ -39,7 +39,7 @@ export default function App() {
   const [view, setView] = useState('home');
   const [activeCategory, setActiveCategory] = useState('Todos los productos');
   const [searchQuery, setSearchQuery] = useState('');
-  const { userRole, userId, userName, userEmail, isLoggedIn, login, logout } = useAuth();
+  const { userRole, userId, userName, userEmail, isLoggedIn, isPrincipal, permissions, login, logout } = useAuth();
   const { cartItems, cartOpen, cartCount, addToCart, removeFromCart, changeQty, clearCart, openCart, closeCart } = useCart();
   const clienteName = userRole === 'client' ? userName : null;
   const { favorites, isFavorite, toggleFavorite } = useFavorites(clienteName);
@@ -75,24 +75,44 @@ export default function App() {
     items.filter(item => item.id).forEach(item => addToCart(item, item.qty));
   };
 
-  /** Shared by checkout (whole cart) and buy-now (a single item): creates
-   * the order + its lines in MockAPI, and decrements stock per item —
-   * best-effort, see decrementStock. */
-  const placeOrder = async (items, discountAmount = 0) => {
-    const cliente = await getClienteById(userId);
-    await createOrder({ clienteName, items, address: cliente.address, discountAmount });
+  /** Shared by checkout (whole cart) and buy-now (a single item): re-checks
+   * real stock right before ordering (it can change between adding an item
+   * to the cart and actually checking out — another purchase, an admin
+   * adjustment), then creates the order + its lines in MockAPI and
+   * decrements stock per item. `orderDetails` (address/postalCode/
+   * paymentMethod) comes from CheckoutModal — the client confirms or edits
+   * them right before the order is placed, instead of it silently reusing
+   * whatever's saved on the profile. `discountId`, when a coupon was
+   * applied, gets its usage counter bumped — best-effort, fire-and-forget:
+   * a failure here shouldn't make an otherwise-successful order look
+   * failed to the client, it would just mean that coupon's use count is
+   * one behind reality. */
+  const placeOrder = async (items, discountAmount, orderDetails, discountId) => {
+    const freshProducts = await Promise.all(items.map(item => getProductById(item.id)));
+    const shortIndex = freshProducts.findIndex((p, i) => p.stockQty < items[i].qty);
+    if (shortIndex !== -1) {
+      const short = freshProducts[shortIndex];
+      throw new Error(
+        short.stockQty > 0
+          ? `Solo quedan ${short.stockQty} unidades de "${short.name}". Ajustá la cantidad para continuar.`
+          : `"${short.name}" ya no tiene stock disponible.`
+      );
+    }
+
+    await createOrder({ clienteName, items, ...orderDetails, discountAmount });
     await Promise.all(items.map(item => decrementStock(item.id, item.qty)));
+    if (discountId) incrementDiscountUsage(discountId).catch(() => {});
   };
 
   /**
-   * `discountAmount` comes from CartTab's applied coupon when checking out
-   * from the account page; the header cart drawer has no coupon UI, so it
-   * always checks out at 0. Lands on "Mis pedidos" so the new order is
-   * right there.
+   * `discountAmount`/`discountId` come from CartTab's applied coupon when
+   * checking out from the account page; the header cart drawer has no
+   * coupon UI, so they're always undefined/0 there. Lands on "Mis
+   * pedidos" so the new order is right there.
    */
-  const handleCheckout = async (discountAmount = 0) => {
+  const handleCheckout = async (discountAmount = 0, orderDetails, discountId) => {
     if (!clienteName) { setView('auth'); return; }
-    await placeOrder(cartItems, discountAmount);
+    await placeOrder(cartItems, discountAmount, orderDetails, discountId);
     clearCart();
     closeCart();
     setView('account');
@@ -100,23 +120,38 @@ export default function App() {
 
   /** Buy-now bypasses the cart entirely — a single-item order for
    * whatever quantity was picked on the product page. */
-  const handleBuyNow = async (product, qty) => {
+  const handleBuyNow = async (product, qty, orderDetails) => {
     if (!clienteName) { setView('auth'); return; }
-    await placeOrder([{ ...product, qty }]);
+    await placeOrder([{ ...product, qty }], 0, orderDetails);
     setView('account');
   };
 
   const [bannerOnlyPromo, setBannerOnlyPromo] = useState(false);
+  const [homeSort, setHomeSort] = useState('relevance');
 
   const handleCategory = (cat) => {
     setBannerOnlyPromo(false);
+    setHomeSort('relevance');
     setActiveCategory(cat);
     setView('category');
   };
 
   const handleSearchSubmit = () => {
     setBannerOnlyPromo(false);
+    setHomeSort('relevance');
     setActiveCategory('Resultados de búsqueda');
+    setView('category');
+  };
+
+  /** The home page's "Ver todo" buttons — each one's `sort` is the real
+   * criteria that section itself is ranked by (see productsService
+   * getFeaturedProducts/getBestSellers/getRecommendedProducts), so "Ver
+   * todo" always lands on the same ranking the carousel just showed a
+   * preview of, not just the generic catalog. */
+  const handleSeeAll = (sort) => {
+    setBannerOnlyPromo(false);
+    setHomeSort(sort);
+    setActiveCategory('Todos los productos');
     setView('category');
   };
 
@@ -143,55 +178,95 @@ export default function App() {
 
     if (link.startsWith('/promociones')) {
       setBannerOnlyPromo(true);
+      setHomeSort('relevance');
       setActiveCategory('Promociones');
       setView('category');
       return;
     }
 
     setBannerOnlyPromo(false);
+    setHomeSort('relevance');
     setView('category');
   };
 
   const handleLogout = () => {
     logout();
     setView('home');
+    refreshStorefrontData();
   };
 
   const [featured, setFeatured] = useState([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [featuredError, setFeaturedError] = useState(null);
   const [bestSellers, setBestSellers] = useState([]);
+  const [bestSellersLoading, setBestSellersLoading] = useState(true);
+  const [bestSellersError, setBestSellersError] = useState(null);
   const [recommended, setRecommended] = useState([]);
-  const [homeLoading, setHomeLoading] = useState(true);
-  const [homeError, setHomeError] = useState(null);
+  const [recommendedLoading, setRecommendedLoading] = useState(true);
+  const [recommendedError, setRecommendedError] = useState(null);
 
   const [pageInfo, setPageInfo] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([getFeaturedProducts(), getBestSellers(), getRecommendedProducts()])
-      .then(([featuredData, bestSellersData, recommendedData]) => {
-        if (cancelled) return;
-        setFeatured(featuredData);
-        setBestSellers(bestSellersData);
-        setRecommended(recommendedData);
-      })
-      .catch(err => { if (!cancelled) setHomeError(err.message); })
-      .finally(() => { if (!cancelled) setHomeLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  /**
+   * Each home section fetches independently, on purpose — they used to
+   * share one Promise.all, so a transient failure in just one of the
+   * three (e.g. a slow/dropped request right after login, when the login
+   * calls and these three fire close together) blanked out all three
+   * sections until a reload. Now a failure in one never affects the
+   * other two.
+   *
+   * These, plus pageInfo, are fetched here in App — the one component
+   * that's always mounted for the whole session and never remounts when
+   * `view` changes — unlike Header/Hero, which fetch their own data and
+   * naturally refresh because they get unmounted while `view === 'admin'`
+   * and remounted on the way back out. Without refreshStorefrontData()
+   * below, saving a change in the admin panel (a product, "Info de la
+   * tienda") and clicking "Volver a la tienda" would keep showing
+   * whatever App fetched once at the very start of the session.
+   */
+  const fetchFeatured = () => {
+    getFeaturedProducts()
+      .then(data => setFeatured(data))
+      .catch(err => setFeaturedError(err.message))
+      .finally(() => setFeaturedLoading(false));
+  };
+
+  const fetchBestSellers = () => {
+    getBestSellers()
+      .then(data => setBestSellers(data))
+      .catch(err => setBestSellersError(err.message))
+      .finally(() => setBestSellersLoading(false));
+  };
+
+  const fetchRecommended = () => {
+    getRecommendedProducts()
+      .then(data => setRecommended(data))
+      .catch(err => setRecommendedError(err.message))
+      .finally(() => setRecommendedLoading(false));
+  };
+
+  const fetchPageInfo = () => {
+    getPageInfo().then(data => setPageInfo(data)).catch(() => {});
+  };
+
+  /** Re-pulls everything the storefront shows that an admin could have
+   * just changed — called when leaving the admin panel, not only once. */
+  const refreshStorefrontData = () => {
+    fetchFeatured();
+    fetchBestSellers();
+    fetchRecommended();
+    fetchPageInfo();
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    getPageInfo()
-      .then(data => { if (!cancelled) setPageInfo(data); })
-      .catch(() => {});
-    return () => { cancelled = true; };
+    refreshStorefrontData();
   }, []);
 
   const storeInfo = pageInfo ?? DEFAULT_PAGE_INFO;
 
   return (
     <div className="app-root">
-      {view === 'admin' ? <AdminView onExit={() => setView('home')} onLogout={handleLogout} adminId={userId} adminName={userName} adminEmail={userEmail} storeInfo={storeInfo} /> : (<>
+      {view === 'admin' ? <AdminView onExit={() => { setView('home'); refreshStorefrontData(); }} onLogout={handleLogout} adminId={userId} adminName={userName} adminEmail={userEmail} isPrincipal={isPrincipal} permissions={permissions} storeInfo={storeInfo} /> : (<>
       <Header
         info={storeInfo}
         cartCount={cartCount}
@@ -215,8 +290,8 @@ export default function App() {
         {view === 'auth' ? (
           <AuthView
             onBack={() => setView('home')}
-            onSuccess={(role, id, name, email) => {
-              login(role, id, name, email);
+            onSuccess={(role, id, name, email, extra) => {
+              login(role, id, name, email, extra);
               setView(role === 'admin' ? 'admin' : 'account');
             }}
           />
@@ -241,24 +316,23 @@ export default function App() {
           <>
             <Hero onCtaClick={handleBannerClick} />
 
-            {homeLoading && <div className="app-status">Cargando productos…</div>}
-            {!homeLoading && homeError && <div className="app-status app-status--error">No se pudieron cargar los productos. Intentá de nuevo más tarde.</div>}
+            <ProductSection title="Productos Destacados" subtitle="Selección especial de nuestros expertos" onSeeAll={() => handleSeeAll('rating')}>
+              {featuredLoading ? <div className="app-status">Cargando productos…</div> :
+               featuredError ? <div className="app-status app-status--error">No se pudieron cargar los productos destacados.</div> :
+               <ProductGrid products={featured} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />}
+            </ProductSection>
 
-            {!homeLoading && !homeError && (
-              <>
-                <ProductSection title="Productos Destacados" subtitle="Selección especial de nuestros expertos" onSeeAll={() => setView('category')}>
-                  <ProductGrid products={featured} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />
-                </ProductSection>
+            <ProductSection title="Lo Más Vendido" subtitle="Los favoritos de nuestra comunidad" onSeeAll={() => handleSeeAll('bestsellers')} alt>
+              {bestSellersLoading ? <div className="app-status">Cargando productos…</div> :
+               bestSellersError ? <div className="app-status app-status--error">No se pudo cargar lo más vendido.</div> :
+               <ProductGrid products={bestSellers} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />}
+            </ProductSection>
 
-                <ProductSection title="Lo Más Vendido" subtitle="Los favoritos de nuestra comunidad" onSeeAll={() => setView('category')} alt>
-                  <ProductGrid products={bestSellers} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />
-                </ProductSection>
-
-                <ProductSection title="Recomendados para Ti" subtitle="Basado en tendencias y mejores valoraciones" onSeeAll={() => setView('category')}>
-                  <ProductGrid products={recommended} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />
-                </ProductSection>
-              </>
-            )}
+            <ProductSection title="Recomendados para Ti" subtitle="Basado en tendencias y mejores valoraciones" onSeeAll={() => handleSeeAll('visitas')}>
+              {recommendedLoading ? <div className="app-status">Cargando productos…</div> :
+               recommendedError ? <div className="app-status app-status--error">No se pudieron cargar los recomendados.</div> :
+               <ProductGrid products={recommended} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />}
+            </ProductSection>
 
             {/* Trust bar */}
             <div className="app-trust-bar">
@@ -273,6 +347,7 @@ export default function App() {
         ) : view === 'product' && selectedProduct ? (
           <ProductDetail
             product={selectedProduct}
+            userId={userId}
             onBack={() => setView(previousView)}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
@@ -280,7 +355,7 @@ export default function App() {
             onToggleFavorite={favoriteHandler}
           />
         ) : (
-          <CategoryView category={activeCategory} searchQuery={activeCategory === 'Resultados de búsqueda' ? searchQuery : ''} initialOnlyPromo={bannerOnlyPromo} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />
+          <CategoryView category={activeCategory} searchQuery={activeCategory === 'Resultados de búsqueda' ? searchQuery : ''} initialOnlyPromo={bannerOnlyPromo} initialSort={homeSort} onView={handleViewProduct} isFavorite={isFavorite} onToggleFavorite={favoriteHandler} />
         )}
       </main>
 
@@ -290,6 +365,7 @@ export default function App() {
       <CartDrawer
         open={cartOpen}
         items={cartItems}
+        userId={userId}
         onClose={closeCart}
         onRemove={removeFromCart}
         onChangeQty={changeQty}

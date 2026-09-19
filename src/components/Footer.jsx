@@ -1,7 +1,12 @@
 import logo from '../imports/gato_sin_fondo-1.svg';
 import '../styles/Footer.css';
 
+// Pie de página de la tienda: muestra la marca, datos de contacto,
+// enlaces y redes sociales. Todos los datos vienen del prop "info"
+// (la información real de la tienda, cargada desde la API).
 export default function Footer({ info }) {
+  // Arma la lista de datos de contacto a mostrar (dirección, teléfono,
+  // correo, horario), cada uno con su ícono correspondiente.
   const contactItems = [
     {
       text: info.address,
@@ -25,7 +30,7 @@ export default function Footer({ info }) {
       <div className="ftr-container">
         <div className="ftr-grid">
 
-          {/* Brand */}
+          {/* Columna: logo, nombre de la tienda, eslogan y redes sociales */}
           <div>
             <div className="ftr-brand-row">
               <div className="ftr-logo-box">
@@ -46,15 +51,7 @@ export default function Footer({ info }) {
             </div>
           </div>
 
-          {/* Sobre nosotros */}
-          <div>
-            <div className="ftr-heading">Sobre {info.storeName}</div>
-            <p className="ftr-body-text">
-              Fundada en 2018, {info.storeName} nació con la misión de acercar la mejor tecnología a todos, con asesoría experta y precios honestos. Distribuidores autorizados de las principales marcas.
-            </p>
-          </div>
-
-          {/* Contacto */}
+          {/* Columna: datos de contacto (el id sirve para que el Header pueda hacer scroll hasta acá) */}
           <div id="footer-contact">
             <div className="ftr-heading">Contacto</div>
             <div className="ftr-contact-list">
@@ -67,18 +64,18 @@ export default function Footer({ info }) {
             </div>
           </div>
 
-          {/* Links */}
+          {/* Columna: enlaces (política de envíos, devoluciones, términos) */}
           <div>
             <div className="ftr-heading">Enlaces</div>
             <div className="ftr-links-list">
-              {['Catálogo completo', 'Laptops', 'Smartphones', 'Gaming', 'Política de envíos', 'Devoluciones', 'Términos y condiciones'].map(link => (
+              {['Política de envíos', 'Devoluciones', 'Términos y condiciones'].map(link => (
                 <a key={link} href="#" className="ftr-link">{link}</a>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Bottom */}
+        {/* Franja inferior: derechos reservados + logos de medios de pago */}
         <div className="ftr-bottom">
           <span className="ftr-copyright">© 2026 {info.storeName}. Todos los derechos reservados.</span>
           <div className="ftr-payment-row">

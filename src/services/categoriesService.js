@@ -1,10 +1,8 @@
 import { apiFetch } from './api';
 
-/**
- * `count` is never stored in MockAPI — it's derived here by counting how
- * many products (active or not; this view is for admins managing
- * inventory, not the public catalog) carry this category's name.
- */
+// Convierte una categoría cruda de MockAPI a la forma que usa la app.
+// "count" (cantidad de productos) no viene guardado en MockAPI — se
+// calcula acá mismo, contando cuántos productos tienen esa categoría.
 function mapCategory(c, productCounts) {
   return {
     id: c.id,
@@ -15,12 +13,15 @@ function mapCategory(c, productCounts) {
   };
 }
 
+// Trae todas las categorías, ya con la cantidad real de productos de cada una.
 export async function getCategories() {
+  // Trae categorías y productos en paralelo.
   const [rawCategories, rawProducts] = await Promise.all([
     apiFetch('/categoria'),
     apiFetch('/producto'),
   ]);
 
+  // Cuenta cuántos productos hay por cada nombre de categoría.
   const productCounts = {};
   for (const p of rawProducts) {
     productCounts[p.categoria] = (productCounts[p.categoria] ?? 0) + 1;
@@ -29,6 +30,7 @@ export async function getCategories() {
   return rawCategories.map((c) => mapCategory(c, productCounts));
 }
 
+// Crea una categoría nueva, activa por defecto.
 export async function createCategory({ name, description }) {
   const raw = await apiFetch('/categoria', {
     method: 'POST',
@@ -38,9 +40,10 @@ export async function createCategory({ name, description }) {
       estado: true,
     }),
   });
-  return mapCategory(raw, {});
+  return mapCategory(raw, {}); // recién creada, todavía no tiene productos (count = 0)
 }
 
+// Actualiza una categoría existente (edición parcial).
 export async function updateCategory(id, { name, description, active } = {}) {
   const body = {};
   if (name !== undefined) body.nombre = name;
@@ -54,10 +57,12 @@ export async function updateCategory(id, { name, description, active } = {}) {
   return mapCategory(raw, {});
 }
 
+// Activa o desactiva una categoría (atajo sobre updateCategory).
 export async function toggleCategory(id, active) {
   return updateCategory(id, { active });
 }
 
+// Elimina una categoría.
 export async function deleteCategory(id) {
   return apiFetch(`/categoria/${id}`, { method: 'DELETE' });
 }

@@ -146,6 +146,13 @@
   margin-bottom: 20px;
 }
 
+.pd-low-stock-warning {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger);
+  margin: -8px 0 20px;
+}
+
 .pd-qty-label {
   font-size: 13.5px;
   font-weight: 600;

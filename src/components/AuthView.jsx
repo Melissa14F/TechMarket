@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useIsMobile } from '../hooks/useBreakpoint';
-import { login as authLogin, register as authRegister } from '../services/authService';
+import { login as authLogin } from '../services/authService';
+import { createCliente } from '../services/clienteService';
 import logo from '../imports/gato_sin_fondo-1.svg';
 import '../styles/AuthView.css';
 
+// Pantalla de autenticación: alterna entre "Iniciar sesión" y "Registrarse"
+// dentro de la misma tarjeta. Sirve tanto para administradores como clientes.
 export default function AuthView({ onBack, onSuccess }) {
   const handleSuccess = onSuccess ?? (() => onBack());
   const [mode, setMode] = useState('login');
@@ -13,9 +16,9 @@ export default function AuthView({ onBack, onSuccess }) {
     <div className="av-page">
       <div className="av-card">
 
-        {/* Left panel — brand (hidden on mobile) */}
+        {/* Panel izquierdo — presentación de la marca (oculto en mobile) */}
         {!isMobile && <div className="av-brand-panel">
-          {/* decorative circles */}
+          {/* círculos decorativos */}
           <div className="av-circle-1" />
           <div className="av-circle-2" />
 
@@ -58,10 +61,10 @@ export default function AuthView({ onBack, onSuccess }) {
           </div>
         </div>}
 
-        {/* Right panel — form */}
+        {/* Panel derecho — formulario */}
         <div className="av-form-panel">
 
-          {/* Mobile back button */}
+          {/* Botón de volver, solo en mobile (el desktop lo tiene dentro del panel de marca) */}
           {isMobile && (
             <button onClick={onBack} className="av-mobile-back-btn">
               <svg className="icon icon-14 icon-sw-2_5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
@@ -69,7 +72,7 @@ export default function AuthView({ onBack, onSuccess }) {
             </button>
           )}
 
-          {/* Logo on mobile */}
+          {/* Logo, solo en mobile */}
           {isMobile && (
             <div className="av-mobile-logo-row">
               <div className="av-mobile-logo-box">
@@ -79,7 +82,7 @@ export default function AuthView({ onBack, onSuccess }) {
             </div>
           )}
 
-          {/* Toggle switch */}
+          {/* Selector de modo: iniciar sesión / registrarse */}
           <div className="av-toggle-wrap">
             {['login', 'register'].map(m => (
               <button key={m} onClick={() => setMode(m)} className={`av-toggle-btn ${mode === m ? 'av-toggle-btn--active' : ''}`}>
@@ -90,7 +93,7 @@ export default function AuthView({ onBack, onSuccess }) {
 
           {mode === 'login'
             ? <LoginForm onSuccess={handleSuccess} />
-            : <RegisterForm onSuccess={(name, email) => handleSuccess('client', null, name, email)} />
+            : <RegisterForm onSuccess={(id, name, email) => handleSuccess('client', id, name, email)} />
           }
         </div>
       </div>
@@ -98,7 +101,8 @@ export default function AuthView({ onBack, onSuccess }) {
   );
 }
 
-/* ── shared field ── */
+/* ── campo de formulario compartido ── */
+// Input reutilizable con label y, opcionalmente, un botón para mostrar/ocultar la contraseña.
 function Field({ label, type = 'text', placeholder, showToggle, show, onToggle, autoComplete, value, onChange }) {
   return (
     <div className="av-field-wrap">
@@ -133,12 +137,14 @@ function Field({ label, type = 'text', placeholder, showToggle, show, onToggle, 
   );
 }
 
+// Botón principal de envío del formulario.
 function PrimaryBtn({ children, disabled }) {
   return (
     <button type="submit" className="av-primary-btn" disabled={disabled}>{children}</button>
   );
 }
 
+// Separador visual "o continuá con" entre el formulario y el botón de Google.
 function Divider() {
   return (
     <div className="av-divider-wrap">
@@ -149,6 +155,7 @@ function Divider() {
   );
 }
 
+// Botón decorativo de "Continuar con Google" (no tiene funcionalidad real conectada).
 function GoogleBtn() {
   return (
     <button type="button" className="av-google-btn">
@@ -163,7 +170,8 @@ function GoogleBtn() {
   );
 }
 
-/* ── Login form ── */
+/* ── Formulario de inicio de sesión ── */
+// Login por correo y contraseña; delega la verificación al servicio authService.login.
 function LoginForm({ onSuccess }) {
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState('');
@@ -171,13 +179,14 @@ function LoginForm({ onSuccess }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Intenta iniciar sesión y, si funciona, pasa el rol/id/nombre/permisos al padre.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
       const result = await authLogin(email, password);
       setError('');
-      onSuccess(result.role, result.id, result.name, result.email);
+      onSuccess(result.role, result.id, result.name, result.email, { isPrincipal: result.isPrincipal, permissions: result.permissions });
     } catch {
       setError('Correo o contraseña incorrectos.');
     } finally {
@@ -224,6 +233,7 @@ function LoginForm({ onSuccess }) {
 
       <PrimaryBtn disabled={submitting}>{submitting ? 'Verificando…' : 'Iniciar sesión →'}</PrimaryBtn>
 
+      {/* Credenciales de prueba visibles para facilitar la demo/pruebas */}
       <div className="av-demo-box">
         <div className="av-demo-title">Credenciales de prueba</div>
         <div className="av-demo-text">
@@ -235,21 +245,59 @@ function LoginForm({ onSuccess }) {
   );
 }
 
-/* ── Register form ── */
+/* ── Formulario de registro ── */
+// Registro de una cuenta de cliente nueva; valida contraseña localmente antes de llamar a createCliente.
 function RegisterForm({ onSuccess }) {
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  // Valida largo mínimo y coincidencia de contraseñas, luego crea la cuenta.
+  // createCliente ya rechaza correos duplicados (normalizado, ver clienteService.js).
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await createCliente({ name: firstName, lastName, email, password });
+      onSuccess(result.id, `${result.name} ${result.lastName}`, result.email);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <form onSubmit={e => { e.preventDefault(); const result = authRegister(firstName, email); onSuccess(result.name, result.email); }} className="av-form">
+    <form onSubmit={handleSubmit} className="av-form">
       <div className="av-name-grid">
-        <Field label="Nombre" placeholder="Juan" autoComplete="given-name" value={firstName} onChange={setFirstName} />
-        <Field label="Apellido" placeholder="García" autoComplete="family-name" />
+        <Field label="Nombre" placeholder="Juan" autoComplete="given-name" value={firstName} onChange={v => { setFirstName(v); setError(''); }} />
+        <Field label="Apellido" placeholder="García" autoComplete="family-name" value={lastName} onChange={v => { setLastName(v); setError(''); }} />
       </div>
-      <Field label="Correo electrónico" type="email" placeholder="tu@email.com" autoComplete="email" value={email} onChange={setEmail} />
-      <Field label="Contraseña" placeholder="Mín. 8 caracteres" showToggle show={showPass} onToggle={() => setShowPass(v => !v)} autoComplete="new-password" />
-      <Field label="Confirmar contraseña" placeholder="Repetí tu contraseña" showToggle show={showPass2} onToggle={() => setShowPass2(v => !v)} autoComplete="new-password" />
+      <Field label="Correo electrónico" type="email" placeholder="tu@email.com" autoComplete="email" value={email} onChange={v => { setEmail(v); setError(''); }} />
+      <Field label="Contraseña" placeholder="Mín. 8 caracteres" showToggle show={showPass} onToggle={() => setShowPass(v => !v)} autoComplete="new-password" value={password} onChange={v => { setPassword(v); setError(''); }} />
+      <Field label="Confirmar contraseña" placeholder="Repetí tu contraseña" showToggle show={showPass2} onToggle={() => setShowPass2(v => !v)} autoComplete="new-password" value={confirmPassword} onChange={v => { setConfirmPassword(v); setError(''); }} />
+
+      {error && (
+        <div className="av-error-box">
+          <svg className="av-error-icon icon icon-15 icon-sw-2_5 icon-stroke-danger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span className="av-error-text">{error}</span>
+        </div>
+      )}
 
       <label className="av-terms-label">
         <input type="checkbox" required className="av-terms-checkbox" />
@@ -261,7 +309,7 @@ function RegisterForm({ onSuccess }) {
         </span>
       </label>
 
-      <PrimaryBtn>Crear mi cuenta →</PrimaryBtn>
+      <PrimaryBtn disabled={submitting}>{submitting ? 'Creando cuenta…' : 'Crear mi cuenta →'}</PrimaryBtn>
       <Divider />
       <GoogleBtn />
     </form>

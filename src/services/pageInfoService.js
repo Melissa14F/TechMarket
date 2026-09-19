@@ -1,14 +1,7 @@
 import { apiFetch } from './api';
 
-/**
- * The real configured schema (confirmed 2026-09-17 once a record finally
- * existed to inspect) is nombre/telefono/direccion/horario/correo — not
- * the nombre_tienda/email guess this service shipped with in Paso 6,
- * before the resource had any data to check against. eslogan/whatsapp/
- * facebook/instagram aren't part of that schema, but MockAPI still stores
- * them as loose extra properties since PageInfoPanel's form collects
- * them — harmless, just not schema-enforced.
- */
+// Convierte la información de la tienda cruda de MockAPI a la forma que
+// usa la app (Header, Footer, panel de admin).
 function mapPageInfo(i) {
   return {
     id: i.id,
@@ -24,18 +17,16 @@ function mapPageInfo(i) {
   };
 }
 
-/**
- * There's only ever one row. Returns null (not an error) when the
- * resource has no record yet — that's a legitimate "not configured yet"
- * state, distinct from a real fetch failure, and it's up to the caller to
- * offer creating the first record.
- */
+// Trae la información de la tienda. Solo existe un único registro; si
+// todavía no se creó ninguno, devuelve null (no es un error, es un
+// estado válido de "todavía no configurado").
 export async function getPageInfo() {
   const raw = await apiFetch('/informacion');
-  const [info] = raw;
+  const [info] = raw; // se queda con el primer (y único) registro
   return info ? mapPageInfo(info) : null;
 }
 
+// Crea el registro de información de la tienda (la primera vez que se guarda).
 export async function createPageInfo(fields = {}) {
   const raw = await apiFetch('/informacion', {
     method: 'POST',
@@ -54,6 +45,7 @@ export async function createPageInfo(fields = {}) {
   return mapPageInfo(raw);
 }
 
+// Actualiza la información de la tienda ya existente (edición parcial).
 export async function updatePageInfo(id, fields = {}) {
   const body = {};
   if (fields.storeName !== undefined) body.nombre = fields.storeName;

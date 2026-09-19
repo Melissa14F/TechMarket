@@ -1,17 +1,21 @@
 import '../styles/ProductCard.css';
 
+// Relaciona cada tipo de etiqueta de producto con su clase CSS de color.
 const BADGE_CLASS = {
   'Nuevo': 'pc-badge--nuevo',
   'Gaming': 'pc-badge--gaming',
   'Oferta': 'pc-badge--oferta',
 };
 
+// Tarjeta de producto: se usa en la grilla de catálogo, favoritos y
+// secciones de la portada. Al hacer clic navega al detalle del producto.
 export default function ProductCard({ product, onView, isFavorite, onToggleFavorite }) {
+  // Calcula el % de descuento a partir del precio original vs. el actual.
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : 0;
 
   return (
     <div onClick={() => onView(product)} className="pc-card">
-      {/* Image */}
+      {/* Imagen del producto, con la etiqueta, el badge de descuento y el aviso de "sin stock" superpuestos */}
       <div className="pc-image-wrap">
         <img src={product.image} alt={product.name} className="pc-image" />
         {product.badge && (
@@ -31,13 +35,13 @@ export default function ProductCard({ product, onView, isFavorite, onToggleFavor
         )}
       </div>
 
-      {/* Body */}
+      {/* Datos del producto: marca + corazón de favorito, nombre, estrellas y precio */}
       <div className="pc-body">
         <div className="pc-brand-row">
           <div className="pc-brand">{product.brand}</div>
           {onToggleFavorite && (
             <button
-              onClick={e => { e.stopPropagation(); onToggleFavorite(product); }}
+              onClick={e => { e.stopPropagation(); onToggleFavorite(product); }} // evita que el clic también dispare onView (abrir el detalle)
               title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               className="pc-favorite-btn"
             >
@@ -51,9 +55,8 @@ export default function ProductCard({ product, onView, isFavorite, onToggleFavor
 
         <Stars rating={product.rating} reviews={product.reviews} />
 
-        <div className="pc-spacer" />
+        <div className="pc-spacer" /> {/* empuja el precio hacia abajo, así todas las tarjetas quedan parejas */}
 
-        {/* Price */}
         <div className="pc-price-row">
           <span className="pc-price">
             ${product.price.toLocaleString()}
@@ -69,6 +72,8 @@ export default function ProductCard({ product, onView, isFavorite, onToggleFavor
   );
 }
 
+// Fila de estrellas de calificación (dibuja 5, rellenas hasta el
+// promedio redondeado) + cantidad de reseñas entre paréntesis.
 function Stars({ rating, reviews }) {
   return (
     <div className="pc-stars-row">

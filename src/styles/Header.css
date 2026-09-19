@@ -384,7 +384,7 @@
 
 .hdr-desktop-row {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 24px;
   padding: 12px 0;
@@ -402,7 +402,9 @@
 
 .hdr-search-wrap {
   position: relative;
-  width: 500px;
+  width: 100%;
+  max-width: 500px;
+  min-width: 0;
 }
 
 .hdr-search-input {
@@ -518,9 +520,9 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: 'Inter', sans-serif;
   transition: color 0.2s, background 0.2s;
   white-space: nowrap;
@@ -545,7 +547,7 @@
   cursor: pointer;
   color: var(--text);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: 'Inter', sans-serif;
   transition: all 0.2s;
   white-space: nowrap;
@@ -590,6 +592,29 @@
   z-index: 200;
 }
 
+/* Between the mobile breakpoint (768px) and ~1024px, the desktop header
+ * is active but there's not enough room to the right of the "Catálogo"
+ * trigger for a 680px panel anchored to it — it ran off the edge of the
+ * screen. Anchoring to the viewport instead of the trigger guarantees it
+ * always fits, regardless of where the trigger happens to sit in the row. */
+@media (max-width: 1024px) {
+  .hdr-mega-panel {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    /* .hdr-root is sticky at top: 0, and its height is constant across
+     * this range (68px topbar row + 38px nav row) — a hand-measured
+     * value instead of a trigger-relative one, since that's exactly what
+     * lets this panel anchor to the viewport instead of the trigger. */
+    top: 106px;
+    width: auto;
+    max-height: calc(100vh - 122px);
+    overflow-y: auto;
+    grid-template-columns: repeat(2, 1fr);
+    border-radius: 14px;
+  }
+}
+
 .hdr-mega-col-title {
   font-family: 'Inter', sans-serif;
   font-weight: 700;
@@ -630,9 +655,9 @@
   align-items: center;
   gap: 6px;
   padding: 10px 14px;
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: 'Inter', sans-serif;
   text-decoration: none;
   transition: color 0.2s, background 0.2s;

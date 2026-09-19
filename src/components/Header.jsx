@@ -4,17 +4,21 @@ import { getCategories } from '../services/categoriesService';
 import logo from '../imports/gato_sin_fondo-1.svg';
 import '../styles/Header.css';
 
+// Cabecera de la tienda: logo, buscador, navegación por categorías y
+// accesos a cuenta/carrito. Tiene dos layouts completamente distintos
+// (mobile con menú hamburguesa, desktop con barra de navegación).
 export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onCategorySelect, onHome, searchQuery, onSearch, onSearchSubmit, isLoggedIn, onLogout, hideNav }) {
   const whatsappUrl = `https://wa.me/${info.whatsapp}`;
-  const [megaOpen, setMegaOpen] = useState(false);
+  const [megaOpen, setMegaOpen] = useState(false); // menú desplegable "Catálogo" (desktop)
   const [searchFocused, setSearchFocused] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // menú lateral (mobile)
+  const [searchOpen, setSearchOpen] = useState(false); // barra de búsqueda desplegada (mobile)
   const [categories, setCategories] = useState([]);
   const megaRef = useRef(null);
   const isMobile = useIsMobile();
-  const topCats = categories.slice(0, 3);
+  const topCats = categories.slice(0, 3); // las primeras 3 categorías se muestran directo en la barra de navegación
 
+  // Carga las categorías activas una sola vez al montar.
   useEffect(() => {
     let cancelled = false;
     getCategories()
@@ -23,6 +27,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
     return () => { cancelled = true; };
   }, []);
 
+  // Cierra el menú "Catálogo" al hacer clic fuera de él.
   useEffect(() => {
     const handler = (e) => {
       if (megaRef.current && !megaRef.current.contains(e.target)) setMegaOpen(false);
@@ -31,12 +36,12 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close mobile menu on resize to desktop
+  // Cierra el menú y la búsqueda mobile si la pantalla pasa a tamaño desktop.
   useEffect(() => {
     if (!isMobile) { setMenuOpen(false); setSearchOpen(false); }
   }, [isMobile]);
 
-  // Prevent body scroll when menu is open
+  // Bloquea el scroll del body mientras el menú mobile está abierto.
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -45,7 +50,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
   return (
     <header className="hdr-root">
       {isMobile ? (
-        /* ─── MOBILE HEADER ─── */
+        /* ─── CABECERA MOBILE ─── */
         <>
           <div className="hdr-mobile-bar">
             {/* Logo */}
@@ -56,14 +61,14 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
               <BrandName name={info.storeName} className="hdr-brand-mobile" />
             </button>
 
-            {/* Search icon */}
+            {/* Ícono de búsqueda */}
             <button onClick={() => setSearchOpen(v => !v)} className="hdr-icon-btn">
               <svg className="icon icon-16 icon-sw-2_5" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
 
-            {/* Cart */}
+            {/* Carrito */}
             <button onClick={onCartOpen} className="hdr-icon-btn hdr-icon-btn--cart">
               <svg className="icon icon-18" viewBox="0 0 24 24">
                 <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
@@ -76,7 +81,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
               )}
             </button>
 
-            {/* Hamburger */}
+            {/* Botón hamburguesa */}
             <button onClick={() => setMenuOpen(v => !v)} className={`hdr-hamburger ${menuOpen ? 'hdr-hamburger--open' : ''}`}>
               <span className={`hdr-hamburger-bar ${menuOpen ? 'hdr-hamburger-bar--top-open' : ''}`} />
               <span className={`hdr-hamburger-bar ${menuOpen ? 'hdr-hamburger-bar--mid-open' : ''}`} />
@@ -84,7 +89,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
             </button>
           </div>
 
-          {/* Mobile search bar */}
+          {/* Barra de búsqueda mobile (solo si se abrió) */}
           {searchOpen && (
             <div className="hdr-mobile-search-wrap">
               <div className="hdr-mobile-search-inner">
@@ -101,18 +106,18 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
             </div>
           )}
 
-          {/* Mobile slide-out menu */}
+          {/* Menú lateral deslizable (mobile) */}
           {menuOpen && (
             <>
               <div onClick={() => setMenuOpen(false)} className="hdr-menu-overlay" />
               <div className="hdr-menu-panel">
-                {/* Menu header */}
+                {/* Encabezado del menú */}
                 <div className="hdr-menu-header">
                   <span className="hdr-menu-title">Menú</span>
                   <button onClick={() => setMenuOpen(false)} className="hdr-menu-close">✕</button>
                 </div>
 
-                {/* Account row */}
+                {/* Fila de cuenta: login o acceso a "Mi cuenta" + cerrar sesión */}
                 <div className={`hdr-menu-account-row ${isLoggedIn ? 'hdr-menu-account-row--logged' : ''}`}>
                   {isLoggedIn ? (
                     <div className="hdr-menu-account-flex">
@@ -131,7 +136,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
                   )}
                 </div>
 
-                {/* Nav links */}
+                {/* Enlaces de navegación: inicio + las 3 categorías principales */}
                 <div className="hdr-menu-nav-group">
                   <MobileMenuItem icon="🏠" label="Inicio" onClick={() => { onHome(); setMenuOpen(false); }} />
                   {topCats.map(cat => (
@@ -139,6 +144,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
                   ))}
                 </div>
 
+                {/* Todas las categorías (catálogo completo) */}
                 <div className="hdr-menu-nav-group hdr-menu-nav-group--bordered">
                   <div className="hdr-menu-catalog-label">Catálogo</div>
                   {categories.map(cat => (
@@ -146,6 +152,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
                   ))}
                 </div>
 
+                {/* Enlace a WhatsApp */}
                 <div className="hdr-menu-nav-group hdr-menu-nav-group--bordered">
                   <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="hdr-menu-whatsapp">
                     <span className="hdr-menu-emoji">💬</span> WhatsApp
@@ -156,11 +163,11 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
           )}
         </>
       ) : (
-        /* ─── DESKTOP HEADER ─── */
+        /* ─── CABECERA DESKTOP ─── */
         <>
           <div className="hdr-desktop-container">
             <div className="hdr-desktop-row">
-              {/* LEFT — Logo */}
+              {/* IZQUIERDA — Logo */}
               <button onClick={onHome} className="hdr-desktop-logo-btn">
                 <div className="hdr-logo-box hdr-logo-box--lg">
                   <img src={logo} alt={info.storeName} className="hdr-logo-img" />
@@ -168,7 +175,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
                 <BrandName name={info.storeName} className="hdr-brand-desktop" />
               </button>
 
-              {/* CENTER — Search */}
+              {/* CENTRO — Buscador */}
               <div className="hdr-search-wrap">
                 <svg className="hdr-search-icon hdr-search-icon--desktop icon icon-16 icon-sw-2_5" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -185,7 +192,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
                 />
               </div>
 
-              {/* RIGHT — Account + Cart */}
+              {/* DERECHA — Cuenta + Carrito */}
               <div className="hdr-right-actions">
                 {/* Always opens the account view (or the login screen when
                     logged out) — signing out lives inside the account page
@@ -220,7 +227,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
             </div>
           </div>
 
-          {/* Level 2: Navigation */}
+          {/* Nivel 2: barra de navegación por categorías */}
           {!hideNav && (
             <div className="hdr-nav-bar">
               <div className="hdr-nav-inner">
@@ -240,6 +247,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
 
                   <div className="hdr-nav-sep" />
 
+                  {/* Menú desplegable "Catálogo" con todas las categorías */}
                   <div ref={megaRef} className="hdr-mega-wrap">
                     <button onClick={() => setMegaOpen(v => !v)} className={`hdr-mega-trigger ${megaOpen ? 'hdr-mega-trigger--open' : ''}`}>
                       <svg className="icon icon-13 icon-sw-2_5" viewBox="0 0 24 24">
@@ -261,6 +269,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
                   </div>
                 </nav>
 
+                {/* Enlaces de la derecha: contacto + WhatsApp */}
                 <div className="hdr-right-links">
                   <NavBtn onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}>Contáctenos</NavBtn>
                   <div className="hdr-nav-sep" />
@@ -283,6 +292,7 @@ export default function Header({ info, cartCount, onCartOpen, onAccountOpen, onC
 
 /** Keeps the two-tone logo look (last word in accent color) for any
  * store name, not just the literal "Tech" + "Market" split it replaces. */
+// Separa el nombre de la tienda en dos partes para pintar la última palabra con el color de acento.
 function BrandName({ name, className }) {
   const words = name.trim().split(' ');
   const last = words.pop();
@@ -294,6 +304,7 @@ function BrandName({ name, className }) {
   );
 }
 
+// Ítem individual del menú lateral mobile.
 function MobileMenuItem({ icon, label, onClick, indent }) {
   return (
     <button onClick={onClick} className={`hdr-menu-item ${indent ? 'hdr-menu-item--indent' : ''}`}>
@@ -303,6 +314,7 @@ function MobileMenuItem({ icon, label, onClick, indent }) {
   );
 }
 
+// Botón de navegación del desktop (con ícono opcional).
 function NavBtn({ children, onClick, icon }) {
   return (
     <button onClick={onClick} className="hdr-nav-btn">

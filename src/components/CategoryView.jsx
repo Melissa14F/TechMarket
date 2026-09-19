@@ -6,20 +6,32 @@ import '../styles/CategoryView.css';
 
 const PAGE_SIZE = 6;
 
+// Opciones del selector de orden.
 const SORT_OPTIONS = [
   { value: 'relevance', label: 'Relevancia' },
   { value: 'price-asc', label: 'Menor precio' },
   { value: 'price-desc', label: 'Mayor precio' },
   { value: 'rating', label: 'Más valorados' },
+  { value: 'bestsellers', label: 'Más vendidos' },
+  { value: 'visitas', label: 'Más vistos' },
 ];
 
-export default function CategoryView({ category, searchQuery = '', initialOnlyPromo = false, onView, isFavorite, onToggleFavorite }) {
-  const [sort, setSort] = useState('relevance');
+/** The home page's "Ver todo" buttons land here with a real sort applied
+ * (rating/bestsellers/visitas) instead of a real category — the page
+ * title reflects that context instead of just saying "Todos los
+ * productos" while quietly showing a different order. */
+const SORT_TITLES = { rating: 'Productos Destacados', bestsellers: 'Lo Más Vendido', visitas: 'Recomendados para Ti' };
+
+// Vista de listado de productos: catálogo por categoría, resultados de
+// búsqueda, promociones, o "ver todo" de una sección de la portada
+// (destacados/más vendidos/recomendados). Incluye filtros, orden y paginación.
+export default function CategoryView({ category, searchQuery = '', initialOnlyPromo = false, initialSort = 'relevance', onView, isFavorite, onToggleFavorite }) {
+  const [sort, setSort] = useState(initialSort);
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [onlyPromo, setOnlyPromo] = useState(initialOnlyPromo);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false); // panel de filtros en mobile
   const [page, setPage] = useState(1);
   const isMobile = useIsMobile();
 
@@ -28,20 +40,6 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // All brand names for the sidebar checklist — fetched once, unfiltered,
-  // since the main fetch below only returns whatever page/filters are active.
-  const [allBrands, setAllBrands] = useState([]);
-  useEffect(() => {
-    let cancelled = false;
-    getProducts({ soloDisponible: true }).then(({ data }) => {
-      if (!cancelled) setAllBrands([...new Set(data.map(p => p.brand))].sort());
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
-
-  // Any filter/sort/search/category change starts back at page 1.
-  useEffect(() => { setPage(1); }, [category, searchQuery, priceMin, priceMax, selectedBrands, onlyPromo, sort]);
 
   // "Todos los productos" (home default), "Resultados de búsqueda" (search
   // mode) and "Promociones" (a banner's /promociones link — there's no real
@@ -52,6 +50,34 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
     ? category
     : undefined;
 
+  // Changing the sort dropdown away from rating/bestsellers/visitas moves
+  // the title back to the plain category, since it's no longer accurate.
+  const displayTitle = SORT_TITLES[sort] ?? category;
+
+  // Brand checklist scoped to the current category — showing every brand in
+  // the whole catalog while browsing "Laptops" meant picking "Auriculares
+  // brand X" and silently getting zero results. Re-fetched (unfiltered by
+  // price/brand/promo, so picking one brand doesn't shrink the list of
+  // others) whenever the category itself changes.
+  const [allBrands, setAllBrands] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    getProducts({ soloDisponible: true, categoria: categoriaFilter }).then(({ data }) => {
+      if (!cancelled) setAllBrands([...new Set(data.map(p => p.brand))].sort());
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [categoriaFilter]);
+
+  // A brand selected in one category is almost never valid in another —
+  // drop it instead of leaving an invisible filter that zeroes out results.
+  // Returns the same array reference when already empty, so React bails
+  // out instead of triggering an extra products re-fetch for nothing.
+  useEffect(() => { setSelectedBrands(prev => prev.length === 0 ? prev : []); }, [categoriaFilter]);
+
+  // Any filter/sort/search/category change starts back at page 1.
+  useEffect(() => { setPage(1); }, [category, searchQuery, priceMin, priceMax, selectedBrands, onlyPromo, sort]);
+
+  // Trae los productos según página, categoría, filtros, orden y búsqueda actuales.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -78,11 +104,13 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
     return () => { cancelled = true; };
   }, [page, categoriaFilter, searchQuery, priceMin, priceMax, selectedBrands, onlyPromo, sort]);
 
+  // Agrega o quita una marca de la lista de marcas seleccionadas.
   const toggleBrand = (brand) =>
     setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
 
   const activeFilterCount = (priceMin ? 1 : 0) + (priceMax ? 1 : 0) + selectedBrands.length + (onlyPromo ? 1 : 0);
 
+  // Renderiza la grilla de resultados (o el estado de carga/error/vacío) + la paginación.
   const renderResults = (gridClassName) => {
     if (loading) return <div className="cv-status">Cargando productos…</div>;
     if (error) return <div className="cv-status cv-status--error">No se pudieron cargar los productos.</div>;
@@ -109,11 +137,11 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
 
   return (
     <div className="cv-container">
-      {/* Mobile: top bar with filter button */}
+      {/* Mobile: barra superior con botón de filtros y orden */}
       {isMobile && (
         <div className="cv-mobile-topbar">
           <div>
-            <h2 className="cv-mobile-title">{category}</h2>
+            <h2 className="cv-mobile-title">{displayTitle}</h2>
             <p className="cv-mobile-count">{total} productos</p>
           </div>
           <div className="cv-mobile-actions">
@@ -130,7 +158,7 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
         </div>
       )}
 
-      {/* Mobile filter drawer */}
+      {/* Panel de filtros deslizable en mobile */}
       {isMobile && filterDrawerOpen && (
         <>
           <div onClick={() => setFilterDrawerOpen(false)} className="cv-drawer-overlay" />
@@ -151,10 +179,10 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
       )}
 
       {isMobile ? (
-        /* Mobile: full-width grid only */
+        /* Mobile: solo la grilla a todo el ancho */
         renderResults('cv-grid--mobile')
       ) : (
-        /* Desktop: sidebar + grid */
+        /* Desktop: barra lateral de filtros + grilla */
         <div className="cv-desktop-grid">
           <aside className="cv-sidebar">
             <FiltersContent
@@ -169,7 +197,7 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
           <main>
             <div className="cv-main-header">
               <div>
-                <h2 className="cv-main-title">{category}</h2>
+                <h2 className="cv-main-title">{displayTitle}</h2>
                 <p className="cv-main-count">{total} productos</p>
               </div>
               <select value={sort} onChange={e => setSort(e.target.value)} className="cv-sort-select cv-sort-select--desktop">
@@ -192,6 +220,7 @@ export default function CategoryView({ category, searchQuery = '', initialOnlyPr
  * updates the parent's state. That's what made the price inputs only
  * accept one character at a time before this was pulled out.
  */
+// Contenido del panel de filtros (precio, marca, ofertas), compartido entre el drawer mobile y la barra lateral de escritorio.
 function FiltersContent({ priceMin, setPriceMin, priceMax, setPriceMax, allBrands, selectedBrands, toggleBrand, onlyPromo, setOnlyPromo, onClear }) {
   return (
     <>
@@ -231,6 +260,7 @@ function FiltersContent({ priceMin, setPriceMin, priceMax, setPriceMax, allBrand
   );
 }
 
+// Estado vacío cuando ningún producto cumple los filtros aplicados.
 function EmptyState() {
   return (
     <div className="cv-empty">
@@ -245,6 +275,7 @@ function EmptyState() {
   );
 }
 
+// Sección genérica del panel de filtros (título + contenido).
 function FilterSection({ title, children }) {
   return (
     <div className="cv-filter-section">

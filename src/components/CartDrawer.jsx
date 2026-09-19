@@ -1,18 +1,47 @@
 import { useState } from 'react';
+import { getSavedShippingInfo } from '../services/clienteService';
+import CheckoutModal from './CheckoutModal';
 import '../styles/CartDrawer.css';
 
-export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty, onCheckout }) {
+// Panel deslizable del carrito (se abre desde el ícono del carrito en el
+// Header). Muestra los ítems agregados y permite finalizar la compra.
+export default function CartDrawer({ open, items, userId, onClose, onRemove, onChangeQty, onCheckout }) {
+  const [showCheckoutForm, setShowCheckoutForm] = useState(false); // si se muestra el formulario de datos de envío
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  // onCheckout itself redirects to login when nobody's signed in — this
-  // only needs to worry about the real-checkout error/loading states.
+  // onCheckout itself redirects to login when nobody's signed in — no
+  // point showing the order-details form to a guest, so this checks
+  // first and skips straight to that redirect without opening it. Once
+  // the client already has shipping info on file, the form only ever
+  // showed up once (the first purchase) — later ones reuse it directly.
   const handleCheckoutClick = async () => {
+    if (!userId) { onCheckout(); return; } // invitado: onCheckout lo redirige al login
+    setCheckoutError('');
+    const saved = await getSavedShippingInfo(userId).catch(() => null);
+    if (saved) {
+      // ya tiene dirección guardada -> compra directo, sin mostrar el formulario
+      setCheckingOut(true);
+      try {
+        await onCheckout(0, saved);
+      } catch (err) {
+        setCheckoutError(err.message);
+      } finally {
+        setCheckingOut(false);
+      }
+    } else {
+      setShowCheckoutForm(true); // primera compra -> pide los datos de envío
+    }
+  };
+
+  // Confirma la compra una vez que el cliente completó el formulario de datos de envío.
+  const handleConfirmOrder = async (orderDetails) => {
     setCheckingOut(true);
     setCheckoutError('');
     try {
-      await onCheckout();
+      await onCheckout(0, orderDetails);
+      setShowCheckoutForm(false);
     } catch (err) {
       setCheckoutError(err.message);
     } finally {
@@ -22,9 +51,10 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
 
   return (
     <>
+      {/* Fondo oscuro semitransparente, clic afuera cierra el panel */}
       <div onClick={onClose} className={`cd-overlay ${open ? 'cd-overlay--open' : ''}`} />
       <div className={`cd-drawer ${open ? 'cd-drawer--open' : ''}`}>
-        {/* Header */}
+        {/* Encabezado del panel */}
         <div className="cd-header">
           <h2 className="cd-title">
             Carrito <span className="cd-title-count">({items.reduce((s, i) => s + i.qty, 0)} items)</span>
@@ -32,7 +62,7 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
           <button onClick={onClose} className="cd-close-btn">×</button>
         </div>
 
-        {/* Items */}
+        {/* Lista de productos en el carrito (o el mensaje de "carrito vacío") */}
         <div className="cd-items">
           {items.length === 0 ? (
             <div className="cd-empty">
@@ -56,10 +86,11 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
                       <div className="cd-qty-wrap">
                         <button onClick={() => item.qty <= 1 ? onRemove(item.id) : onChangeQty(item.id, item.qty - 1)} className="cd-qty-btn">−</button>
                         <span className="cd-qty-value">{item.qty}</span>
-                        <button onClick={() => onChangeQty(item.id, item.qty + 1)} className="cd-qty-btn">+</button>
+                        <button onClick={() => onChangeQty(item.id, item.qty + 1)} disabled={item.qty >= item.stockQty} className="cd-qty-btn">+</button>
                       </div>
                       <button onClick={() => onRemove(item.id)} className="cd-remove-btn">Eliminar</button>
                     </div>
+                    {item.qty >= item.stockQty && <div className="cd-qty-limit">No hay más stock disponible</div>}
                   </div>
                 </div>
               ))}
@@ -67,7 +98,7 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
           )}
         </div>
 
-        {/* Footer */}
+        {/* Total y botón de finalizar compra (solo si hay algo en el carrito) */}
         {items.length > 0 && (
           <div className="cd-footer">
             <div className="cd-total-row">
@@ -81,6 +112,18 @@ export default function CartDrawer({ open, items, onClose, onRemove, onChangeQty
           </div>
         )}
       </div>
+
+      {/* Formulario de datos de envío, solo aparece cuando hace falta */}
+      {showCheckoutForm && (
+        <CheckoutModal
+          userId={userId}
+          total={total}
+          submitting={checkingOut}
+          error={checkoutError}
+          onClose={() => setShowCheckoutForm(false)}
+          onConfirm={handleConfirmOrder}
+        />
+      )}
     </>
   );
 }

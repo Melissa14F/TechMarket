@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
-import { getBanners } from '../services/productsService';
+import { getBanners } from '../services/bannerService';
 import { useIsMobile } from '../hooks/useBreakpoint';
 import '../styles/Hero.css';
 
+// Carrusel de banners de la portada. Carga los banners activos, los va
+// rotando solo cada 5 segundos, y al hacer clic en el botón avisa al
+// componente padre (App.jsx) para que decida a dónde navegar.
 export default function Hero({ onCtaClick }) {
-  const [current, setCurrent] = useState(0);
+  const [current, setCurrent] = useState(0); // índice del banner que se está mostrando
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const isMobile = useIsMobile();
 
+  // Carga los banners una sola vez, al montar el componente.
   useEffect(() => {
     let cancelled = false;
     getBanners()
@@ -19,13 +23,14 @@ export default function Hero({ onCtaClick }) {
     return () => { cancelled = true; };
   }, []);
 
+  // Rotación automática: cada 5 segundos pasa al siguiente banner.
   useEffect(() => {
     if (banners.length === 0) return;
     const t = setInterval(() => setCurrent(c => (c + 1) % banners.length), 5000);
-    return () => clearInterval(t);
+    return () => clearInterval(t); // limpia el temporizador al desmontar o si cambia la cantidad de banners
   }, [banners.length]);
 
-  const b = banners[current];
+  const b = banners[current]; // banner actualmente visible
 
   return (
     <div className="hero-root">
@@ -34,6 +39,9 @@ export default function Hero({ onCtaClick }) {
 
       {!loading && !error && b && (
         <>
+          {/* Todas las imágenes de fondo se renderizan siempre; solo la
+              del banner actual queda visible (vía la clase --active),
+              para poder animar la transición entre una y otra. */}
           {banners.map((banner, i) => (
             <div key={banner.id} className={`hero-slide ${i === current ? 'hero-slide--active' : ''}`}>
               <img src={banner.image} alt={banner.title} className="hero-slide-img" />
@@ -41,6 +49,7 @@ export default function Hero({ onCtaClick }) {
             </div>
           ))}
 
+          {/* Texto y botón del banner actual */}
           <div className="hero-content">
             <div className="hero-inner">
               <div className="hero-badge">
@@ -60,7 +69,7 @@ export default function Hero({ onCtaClick }) {
             </div>
           </div>
 
-          {/* Arrows — hidden on mobile */}
+          {/* Flechas para pasar de banner manualmente — ocultas en mobile */}
           {!isMobile && (
             <>
               <button onClick={() => setCurrent(c => (c - 1 + banners.length) % banners.length)} className="hero-arrow hero-arrow--left">‹</button>
@@ -68,7 +77,7 @@ export default function Hero({ onCtaClick }) {
             </>
           )}
 
-          {/* Dots */}
+          {/* Puntitos indicadores, uno por banner — clic para ir directo a ese banner */}
           <div className="hero-dots">
             {banners.map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)} className={`hero-dot ${i === current ? 'hero-dot--active' : ''}`} />

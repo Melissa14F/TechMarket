@@ -1,14 +1,8 @@
 import { apiFetch, ApiError } from './api';
 
-/**
- * MockAPI's `favorito` resource has no seed data (empty), so its exact
- * shape couldn't be read off live records like every other service here —
- * a test write/read/delete round-trip (2026-09-17) confirmed `cliente` and
- * `producto` are accepted and persist, and that MockAPI auto-fills a
- * `fecha` timestamp on create. `cliente`/`producto` are plain name
- * strings, matching how orden.cliente and detalle_orden.producto already
- * reference records by name rather than id in this backend.
- */
+// Convierte un favorito crudo de MockAPI a la forma que usa la app.
+// Nota: "cliente" y "producto" son el NOMBRE (no el id), igual que en
+// otras relaciones de este backend (por ejemplo orden.cliente).
 function mapFavorito(f) {
   return {
     id: f.id,
@@ -18,16 +12,20 @@ function mapFavorito(f) {
   };
 }
 
+// Trae los favoritos de un cliente puntual, filtrando por su nombre.
 export async function getByCliente(clienteName) {
   try {
     const raw = await apiFetch('/favorito', { params: { cliente: clienteName } });
     return raw.map(mapFavorito);
   } catch (err) {
+    // MockAPI devuelve 404 cuando el filtro no encuentra nada — se trata
+    // como "sin favoritos todavía", no como un error real.
     if (err instanceof ApiError && err.status === 404) return [];
     throw err;
   }
 }
 
+// Marca un producto como favorito de un cliente.
 export async function add(clienteName, productoName) {
   const raw = await apiFetch('/favorito', {
     method: 'POST',
@@ -36,6 +34,7 @@ export async function add(clienteName, productoName) {
   return mapFavorito(raw);
 }
 
+// Quita un favorito.
 export async function remove(id) {
   return apiFetch(`/favorito/${id}`, { method: 'DELETE' });
 }
